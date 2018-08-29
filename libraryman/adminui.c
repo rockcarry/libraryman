@@ -36,28 +36,22 @@ static void handle_init_db(void)
 
 static void handle_add_book(void)
 {
-    char  name   [64];
-    char  author [64];
-    char  press  [64];
-    float price;
-    char  isbn   [16 ];
-    char  shelf  [16 ];
-    char  comment[256];
-    char  temp   [256];
-    DWORD bookid = 0;
-    int   rc     = 0;
+    char     temp[256];
+    BOOKITEM item   = {0};
+    DWORD    bookid = 0;
+    int      rc     = 0;
 
     printf("\n");
     printf("新书录入\r\n");
     printf("--------\r\n");
-    printf("书  名："); scanf("%63s" , name   ); fgets(temp, 256, stdin);
-    printf("作  者："); scanf("%63s" , author ); fgets(temp, 256, stdin);
-    printf("出版社："); scanf("%63s" , press  ); fgets(temp, 256, stdin);
-    printf("价  格："); scanf("%f"   ,&price  ); fgets(temp, 256, stdin);
-    printf("ISBN  ："); scanf("%15s" , isbn   ); fgets(temp, 256, stdin);
-    printf("书  架："); scanf("%15s" , shelf  ); fgets(temp, 256, stdin);
-    printf("备  注："); scanf("%255s", comment); fgets(temp, 256, stdin);
-    rc = libdb_add_book(name, author, press, price, isbn, shelf, comment, &bookid);
+    printf("书  名："); scanf("%63s" , item.name   ); fgets(temp, 256, stdin);
+    printf("作  者："); scanf("%63s" , item.author ); fgets(temp, 256, stdin);
+    printf("出版社："); scanf("%63s" , item.press  ); fgets(temp, 256, stdin);
+    printf("价  格："); scanf("%f"   ,&item.price  ); fgets(temp, 256, stdin);
+    printf("ISBN  ："); scanf("%15s" , item.isbn   ); fgets(temp, 256, stdin);
+    printf("书  架："); scanf("%15s" , item.shelf  ); fgets(temp, 256, stdin);
+    printf("备  注："); scanf("%255s", item.comment); fgets(temp, 256, stdin);
+    rc = libdb_add_book(item.name, item.author, item.press, item.price, item.isbn, item.shelf, item.comment, &bookid);
     if (rc) {
         printf("\n录入失败！\n");
     } else {
@@ -241,12 +235,113 @@ static void handle_query_book_by_condition(void)
     libdb_query_book(name, author, press, isbn, 0, 0, item, &n);
 
     printf("\n");
-    printf("编码\t\t书名\t\t作者\t出版社\t\t价格\t状态\t书架\n");
-    printf("------------------------------------------------------------------------------\n");
+    printf("编码         书名          作者      出版社        价格   状态  书架\n");
+    printf("----------------------------------------------------------------------\n");
     for (i=0; i<n; i++) {
         if (item[i].status < 0) item[i].status = 0;
         if (item[i].status > 4) item[i].status = 4;
-        printf("B%010d\t%-10s\t%s\t%-10s\t%.2f\t%s\t%s\n", item[i].id, item[i].name, item[i].author, item[i].press, item[i].price, BOOK_STATUS_STR[item[0].status], item[i].shelf);
+        printf("B%010d  %-12s  %-8s  %-12s  %5.2f  %s  %s\n", item[i].id, item[i].name, item[i].author, item[i].press, item[i].price, BOOK_STATUS_STR[item[0].status], item[i].shelf);
+    }
+    printf("\n");
+    printf("(任意键继续...)\n");
+    getch();
+}
+
+static void handle_add_user(void)
+{
+    char     temp[256];
+    USERITEM item   = {0};
+    DWORD    userid = 0;
+    int      rc     = 0;
+
+    printf("\n");
+    printf("新用户注册\r\n");
+    printf("----------\r\n");
+    printf("姓  名："); scanf("%32s", item.name    ); fgets(temp, 256, stdin);
+    printf("性  别："); scanf("%6s" , item.sex     ); fgets(temp, 256, stdin);
+    printf("身份证："); scanf("%18s", item.idcard  ); fgets(temp, 256, stdin);
+    printf("密  码："); scanf("%15s", item.password); fgets(temp, 256, stdin);
+    rc = libdb_add_user(item.name, item.sex, item.idcard, item.password, &userid);
+    if (rc) {
+        printf("\n注册失败！\n");
+    } else {
+        printf("\n注册成功！\n");
+        printf("新用户的编码为：U%010d\n", userid);
+        printf("请根据该编码制作用户借书卡！\n\n");
+    }
+
+    printf("(任意键继续...)\n");
+    getch();
+}
+
+static void handle_query_user_by_barcode(void)
+{
+    USERITEM item[10 ] = {0};
+    char  barcode[12 ] = {0};
+    char  temp   [256];
+    DWORD userid = 0;
+    int   rc     = 0;
+    int   n      = 0;
+
+    printf("\n");
+    printf("扫码查用户\r\n");
+    printf("----------\r\n");
+    printf("请扫描条码："); scanf("%11s", barcode); fgets(temp, 256, stdin);
+    if (barcode[0] != 'U') {
+        printf("\n非法的用户编码！\n");
+        printf("(任意键继续...)\n");
+        getch();
+        return;
+    }
+
+    userid = atoi(&barcode[1]);
+    libdb_query_user("*", "*", "*", userid, -1, item, &n);
+    if (n == 0) {
+        printf("\n没有找到该用户的相关信息！\n");
+        printf("(任意键继续...)\n");
+        getch();
+        return;
+    }
+
+    printf("\n");
+    printf("用户详情：\n");
+    printf("----------\n");
+    printf("编  码：U%010d\n", item[0].id);
+    printf("姓  名：%s\n"    , item[0].name);
+    printf("性  别：%s\n"    , item[0].sex);
+    printf("身份证：%s\n"    , item[0].idcard);
+    printf("借书力：%d\n"    , item[0].maxborrow);
+    printf("密  码：%s\n"    , item[0].password);
+    printf("\n");
+    printf("(任意键继续...)\n");
+    getch();
+}
+
+static void handle_query_user_by_condition(void)
+{
+    USERITEM item[10];
+    char  name   [33];
+    char  sex    [7 ];
+    char  idcard [20];
+    char  temp   [256];
+    int   rc = 0;
+    int   n  = 0;
+    int   i;
+
+    printf("\n");
+    printf("条件查用户\r\n");
+    printf("----------\r\n");
+    printf("请输入查询条件：\n");
+    printf("姓  名："); scanf("%32s", name    ); fgets(temp, 256, stdin);
+    printf("性  别："); scanf("%6s" , sex     ); fgets(temp, 256, stdin);
+    printf("身份证："); scanf("%18s", idcard  ); fgets(temp, 256, stdin);
+    libdb_query_user(name, sex, idcard, 0, 0, item, &n);
+
+    printf("\n");
+    printf("编码         姓名      性别  身份证              借书能力  密码\n");
+    printf("------------------------------------------------------------------------\n");
+    for (i=0; i<n; i++) {
+        printf("U%010d  %-8s  %-4s  %s  %-3d       %s\n", item[i].id, item[i].name, item[i].sex, item[i].idcard, item[i].maxborrow, item[i].password);
     }
     printf("\n");
     printf("(任意键继续...)\n");
@@ -308,26 +403,19 @@ int enter_adminui(char *code)
         printf("R. 还书\n");
         printf("Q. 登出\n\n");
         scanf("%1s", op); fgets(temp, 256, stdin);
-        if (op[0] == '8') {
+        if (op[0] == 'Q') {
             printf("\n已退出管理界面\n\n");
             break;
         } else {
             switch (op[0]) {
-            case '1':
-                handle_query_book_by_barcode();
-                break;
-            case '2':
-                handle_query_book_by_condition();
-                break;
-            case '3':
-                handle_add_book();
-                break;
-            case '4':
-                handle_mod_book();
-                break;
-            case '9':
-                handle_init_db();
-                break;
+            case '1': handle_query_book_by_barcode  (); break;
+            case '2': handle_query_book_by_condition(); break;
+            case '3': handle_add_book(); break;
+            case '4': handle_mod_book(); break;
+            case '5': handle_query_user_by_barcode  (); break;
+            case '6': handle_query_user_by_condition(); break;
+            case '7': handle_add_user(); break;
+            case '9': handle_init_db (); break;
             }
         }
     }

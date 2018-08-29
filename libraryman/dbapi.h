@@ -15,9 +15,24 @@ typedef struct {
     char   comment[256];
 } BOOKITEM;
 
+typedef struct {
+    DWORD  id;
+    char   name    [33];
+    char   sex     [7 ];
+    char   idcard  [20];
+    int    maxborrow;
+    char   password[16];
+} USERITEM;
+
 int libdb_init(void);
-int libdb_add_book  (char *name, char *author, char *press, float price, char *isbn, char *shelf, char *comment, DWORD *bookid);
-int libdb_query_book(char *name, char *author, char *press, char *isbn, DWORD bookid, int page, BOOKITEM *list, int *num);
+
+int libdb_add_book   (char *name, char *author, char *press, double price, char *isbn, char *shelf, char *comment, DWORD *bookid);
+int libdb_query_book (char *name, char *author, char *press, char *isbn, DWORD bookid, int page, BOOKITEM *list, int *num);
 int libdb_modify_book(BOOKITEM *item);
 
+int libdb_add_user   (char *name, char *sex, char *idcard, char *password, DWORD *userid);
+int libdb_query_user (char *name, char *sex, char *idcard, DWORD userid, int page, USERITEM *list, int *num);
+int libdb_modify_user(USERITEM *item);
+
 #endif
+
