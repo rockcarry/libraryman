@@ -18,5 +18,6 @@ typedef struct {
 int libdb_init(void);
 int libdb_add_book  (char *name, char *author, char *press, float price, char *isbn, char *shelf, char *comment, DWORD *bookid);
 int libdb_query_book(char *name, char *author, char *press, char *isbn, DWORD bookid, int page, BOOKITEM *list, int *num);
+int libdb_modify_book(BOOKITEM *item);
 
 #endif

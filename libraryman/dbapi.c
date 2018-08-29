@@ -41,23 +41,24 @@ int libdb_init(void)
                  "Price   real     default 0.0,"
                  "ISBN    char(16),"
                  "Shelf   char(16),"
-                 "Status  integer  default -1,"
+                 "Status  integer  default 0,"
                  "Comment text"
                  ");";
     char *sql2 = "create table UserTable ("
-                 "Id          integer  primary key autoincrement,"
-                 "Name        char(33) not null,"
-                 "Sex         char(7 ),"
-                 "IdCardNum   char(20) not null,"
-                 "Password    char(16) not null"
+                 "Id         integer  primary key autoincrement,"
+                 "Name       char(33) not null,"
+                 "Sex        char(7 ),"
+                 "IdCardNum  char(20) not null,"
+                 "MaxBorrow  integer  default 3,"
+                 "Password   char(16) not null"
                  ");";
 
     char *sql3 = "create table BorrowTable ("
-                 "Id          integer  primary key autoincrement,"
-                 "BookId      integer  not null,"
-                 "UserId      integer  not null,"
-                 "BorrowDate  date     not null,"
-                 "ReturnDate  date     not null"
+                 "Id         integer  primary key autoincrement,"
+                 "BookId     integer  not null,"
+                 "UserId     integer  not null,"
+                 "BorrowDate date     not null,"
+                 "ReturnDate date     not null"
                  ");";
 
     sqlite3 *db = NULL;
@@ -184,5 +185,32 @@ int libdb_query_book(char *name, char *author, char *press, char *isbn, DWORD bo
 done:
     if (db) sqlite3_close(db);
     *num = rows;
+    return rc;
+}
+
+int libdb_modify_book(BOOKITEM *item)
+{
+    char     sql[256];
+    char    *err = NULL;
+    int      rc  = 0;
+    sqlite3 *db  = NULL;
+
+    rc = sqlite3_open("library.db", &db);
+    if (rc) {
+        printf("failed to open database !\n");
+        goto done;
+    }
+
+    sprintf(sql, "update BookTable set Name = '%s', Author = '%s', Press = '%s', Price = %f, ISBN = '%s', Shelf = '%s', Status = %d, Comment = '%s' where Id = %d;",
+        item->name, item->author, item->press, item->price, item->isbn, item->shelf, item->status, item->comment, item->id);
+    rc = sqlite3_exec(db, sql, callback, 0, &err);
+    if (rc) {
+        printf("failed to modify book !\n");
+        printf("%s.\n", err);
+//      goto done;
+    }
+
+done:
+    if (db) sqlite3_close(db);
     return rc;
 }

@@ -72,6 +72,103 @@ static void handle_add_book(void)
     getch();
 }
 
+static void handle_mod_book(void)
+{
+    BOOKITEM item[10 ] = {0};
+    char  barcode[12 ] = {0};
+    char  temp   [256];
+    char  yesno  [2];
+    DWORD bookid = 0;
+    int   rc     = 0;
+    int   n      = 0;
+
+    printf("\n");
+    printf("书籍信息修改\r\n");
+    printf("------------\r\n");
+    printf("请扫描条码（或输入图书编码）："); scanf("%11s", barcode); fgets(temp, 256, stdin);
+    if (barcode[0] != 'B') {
+        printf("\n非法的图书编码！\n");
+        printf("(任意键继续...)\n");
+        getch();
+        return;
+    }
+
+    bookid = atoi(&barcode[1]);
+    libdb_query_book("*", "*", "*", "*", bookid, -1, item, &n);
+    if (n == 0) {
+        printf("\n没有找到该书籍的相关信息！\n");
+        printf("(任意键继续...)\n");
+        getch();
+        return;
+    }
+
+    if (item[0].status < 0) item[0].status = 0;
+    if (item[0].status > 4) item[0].status = 4;
+
+    printf("\n");
+    printf("书籍信息：\n");
+    printf("----------\n");
+
+    printf("书  名：%s\n"    , item[0].name);
+    printf("需要修改吗？(Y/N) "); scanf("%1s", yesno); fgets(temp, 256, stdin);
+    if (yesno[0] == 'Y') {
+        printf("请输入新的书名："); scanf("%63s", item[0].name); fgets(temp, 256, stdin);
+    }
+
+    printf("作  者：%s\n"    , item[0].author);
+    printf("需要修改吗？(Y/N) "); scanf("%1s", yesno); fgets(temp, 256, stdin);
+    if (yesno[0] == 'Y') {
+        printf("请输入新的作者："); scanf("%63s", item[0].author); fgets(temp, 256, stdin);
+    }
+
+    printf("出版社：%s\n"    , item[0].press);
+    printf("需要修改吗？(Y/N) "); scanf("%1s", yesno); fgets(temp, 256, stdin);
+    if (yesno[0] == 'Y') {
+        printf("请输入新的出版社："); scanf("%63s", item[0].press); fgets(temp, 256, stdin);
+    }
+
+    printf("价  格：%.2f\n"  , item[0].price);
+    printf("需要修改吗？(Y/N) "); scanf("%1s", yesno); fgets(temp, 256, stdin);
+    if (yesno[0] == 'Y') {
+        printf("请输入新的价格："); scanf("%f", &(item[0].price)); fgets(temp, 256, stdin);
+    }
+
+    printf("ISBN  ：%s\n"    , item[0].isbn);
+    printf("需要修改吗？(Y/N) "); scanf("%1s", yesno); fgets(temp, 256, stdin);
+    if (yesno[0] == 'Y') {
+        printf("请输入新的 ISBN："); scanf("%15s", item[0].isbn); fgets(temp, 256, stdin);
+    }
+
+    printf("书  架：%s\n"    , item[0].shelf);
+    printf("需要修改吗？(Y/N) "); scanf("%1s", yesno); fgets(temp, 256, stdin);
+    if (yesno[0] == 'Y') {
+        printf("请输入新的书架："); scanf("%15s", item[0].shelf); fgets(temp, 256, stdin);
+    }
+
+    printf("状  态：%s\n"    , BOOK_STATUS_STR[item[0].status]);
+    printf("需要修改吗？(Y/N) "); scanf("%1s", yesno); fgets(temp, 256, stdin);
+    if (yesno[0] == 'Y') {
+        printf("请选择新的状态：\n");
+        printf("0 - 未知\n");
+        printf("1 - 在库\n");
+        printf("2 - 借出\n");
+        printf("3 - 损坏\n");
+        printf("3 - 遗失\n");
+        scanf("%d", &(item[0].status));
+    }
+
+    printf("备  注：%s\n"    , item[0].comment);
+    printf("需要修改吗？(Y/N) "); scanf("%1s", yesno); fgets(temp, 256, stdin);
+    if (yesno[0] == 'Y') {
+        printf("请输入新的备注："); scanf("%255s", item[0].comment); fgets(temp, 256, stdin);
+    }
+
+    rc = libdb_modify_book(&(item[0]));
+    printf("修改书籍信息%s!\n", rc ? "失败" : "成功");
+    printf("(任意键继续...)\n");
+    getch();
+}
+
 static void handle_query_book_by_barcode(void)
 {
     BOOKITEM item[10 ] = {0};
@@ -85,6 +182,13 @@ static void handle_query_book_by_barcode(void)
     printf("扫码查书\r\n");
     printf("--------\r\n");
     printf("请扫描条码："); scanf("%11s", barcode); fgets(temp, 256, stdin);
+    if (barcode[0] != 'B') {
+        printf("\n非法的图书编码！\n");
+        printf("(任意键继续...)\n");
+        getch();
+        return;
+    }
+
     bookid = atoi(&barcode[1]);
     libdb_query_book("*", "*", "*", "*", bookid, -1, item, &n);
     if (n == 0) {
@@ -94,7 +198,6 @@ static void handle_query_book_by_barcode(void)
         return;
     }
 
-    item[0].status += 1;
     if (item[0].status < 0) item[0].status = 0;
     if (item[0].status > 4) item[0].status = 4;
 
@@ -141,7 +244,6 @@ static void handle_query_book_by_condition(void)
     printf("编码\t\t书名\t\t作者\t出版社\t\t价格\t状态\t书架\n");
     printf("------------------------------------------------------------------------------\n");
     for (i=0; i<n; i++) {
-        item[i].status += 1;
         if (item[i].status < 0) item[i].status = 0;
         if (item[i].status > 4) item[i].status = 4;
         printf("B%010d\t%-10s\t%s\t%-10s\t%.2f\t%s\t%s\n", item[i].id, item[i].name, item[i].author, item[i].press, item[i].price, BOOK_STATUS_STR[item[0].status], item[i].shelf);
@@ -215,6 +317,9 @@ int enter_adminui(char *code)
                 break;
             case '3':
                 handle_add_book();
+                break;
+            case '4':
+                handle_mod_book();
                 break;
             case '7':
                 handle_init_db();
