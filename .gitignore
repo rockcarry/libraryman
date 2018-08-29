@@ -4,3 +4,4 @@ release/
 *.ncb
 *.user
 *.suo
+*.db

@@ -299,10 +299,14 @@ int enter_adminui(char *code)
         printf("2. 条件查书\n");
         printf("3. 新书录入\n");
         printf("4. 书籍信息修改\n");
-        printf("5. 新用户注册\n");
-        printf("6. 用户信息修改\n");
-        printf("7. 初始化数据库\n");
-        printf("8. 登出\n\n");
+        printf("5. 扫码查用户\n");
+        printf("6. 条件查用户\n");
+        printf("7. 新用户注册\n");
+        printf("8. 用户信息修改\n");
+        printf("9. 初始化数据库\n");
+        printf("B. 借书\n");
+        printf("R. 还书\n");
+        printf("Q. 登出\n\n");
         scanf("%1s", op); fgets(temp, 256, stdin);
         if (op[0] == '8') {
             printf("\n已退出管理界面\n\n");
@@ -321,7 +325,7 @@ int enter_adminui(char *code)
             case '4':
                 handle_mod_book();
                 break;
-            case '7':
+            case '9':
                 handle_init_db();
                 break;
             }
