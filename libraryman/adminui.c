@@ -1,10 +1,155 @@
 #include <windows.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <conio.h>
+#include <string.h>
+#include "stdefine.h"
+#include "dbapi.h"
 #include "adminui.h"
 
 #define ADMIN_PASSWORD  "admin888"
 #define MAX_RETRY_TIMES 3
+
+static char *BOOK_STATUS_STR[] = {
+    "未知",
+    "在库",
+    "借出",
+    "损坏",
+    "遗失",
+};
+
+static void handle_init_db(void)
+{
+    char str [16];
+    char temp[256];
+    int  rc = 0;
+    printf("\n请输入 confirm_initdb 以确认执行初始化操作：");
+    scanf("%14s", str); fgets(temp, 256, stdin);
+    if (strcmp(str, "confirm_initdb") == 0) {
+        printf("正在执行初始化数据库操作...\n");
+        rc = libdb_init();
+        printf("初始化数据库%s!\n", rc ? "失败" : "成功");
+    } else {
+        printf("无效的输入，放弃执行初始化数据库操作！\n");
+    }
+}
+
+static void handle_add_book(void)
+{
+    char  name   [64];
+    char  author [64];
+    char  press  [64];
+    float price;
+    char  isbn   [16 ];
+    char  shelf  [16 ];
+    char  comment[256];
+    char  temp   [256];
+    DWORD bookid = 0;
+    int   rc     = 0;
+
+    printf("\n");
+    printf("新书录入\r\n");
+    printf("--------\r\n");
+    printf("书  名："); scanf("%63s" , name   ); fgets(temp, 256, stdin);
+    printf("作  者："); scanf("%63s" , author ); fgets(temp, 256, stdin);
+    printf("出版社："); scanf("%63s" , press  ); fgets(temp, 256, stdin);
+    printf("价  格："); scanf("%f"   ,&price  ); fgets(temp, 256, stdin);
+    printf("ISBN  ："); scanf("%15s" , isbn   ); fgets(temp, 256, stdin);
+    printf("书  架："); scanf("%15s" , shelf  ); fgets(temp, 256, stdin);
+    printf("备  注："); scanf("%255s", comment); fgets(temp, 256, stdin);
+    rc = libdb_add_book(name, author, press, price, isbn, shelf, comment, &bookid);
+    if (rc) {
+        printf("\n录入失败！\n");
+    } else {
+        printf("\n录入成功！\n");
+        printf("该书的编码为：B%010d\n", bookid);
+        printf("正在打印条码...   \n"); Sleep(1000);
+        printf("打印条码打印完毕！\n"); Sleep(500 );
+        printf("请确保将条码正确的贴在书籍的指定位置！\n\n");
+    }
+
+    printf("(任意键继续...)\n");
+    getch();
+}
+
+static void handle_query_book_by_barcode(void)
+{
+    BOOKITEM item[10 ] = {0};
+    char  barcode[12 ] = {0};
+    char  temp   [256];
+    DWORD bookid = 0;
+    int   rc     = 0;
+    int   n      = 0;
+
+    printf("\n");
+    printf("扫码查书\r\n");
+    printf("--------\r\n");
+    printf("请扫描条码："); scanf("%11s", barcode); fgets(temp, 256, stdin);
+    bookid = atoi(&barcode[1]);
+    libdb_query_book("*", "*", "*", "*", bookid, -1, item, &n);
+    if (n == 0) {
+        printf("\n没有找到该书籍的相关信息！\n");
+        printf("(任意键继续...)\n");
+        getch();
+        return;
+    }
+
+    item[0].status += 1;
+    if (item[0].status < 0) item[0].status = 0;
+    if (item[0].status > 4) item[0].status = 4;
+
+    printf("\n");
+    printf("书籍详情：\n");
+    printf("----------\n");
+    printf("编  码：B%010d\n", item[0].id);
+    printf("书  名：%s\n"    , item[0].name);
+    printf("作  者：%s\n"    , item[0].author);
+    printf("出版社：%s\n"    , item[0].press);
+    printf("价  格：%.2f\n"  , item[0].price);
+    printf("ISBN  ：%s\n"    , item[0].isbn);
+    printf("书  架：%s\n"    , item[0].shelf);
+    printf("状  态：%s\n"    , BOOK_STATUS_STR[item[0].status]);
+    printf("备  注：%s\n"    , item[0].comment);
+    printf("\n");
+    printf("(任意键继续...)\n");
+    getch();
+}
+
+static void handle_query_book_by_condition(void)
+{
+    BOOKITEM item[10];
+    char  name   [64];
+    char  author [64];
+    char  press  [64];
+    char  isbn   [16 ];
+    char  temp   [256];
+    int   rc = 0;
+    int   n  = 0;
+    int   i;
+
+    printf("\n");
+    printf("条件查书\r\n");
+    printf("--------\r\n");
+    printf("请输入查询条件：\n");
+    printf("书  名："); scanf("%63s" , name   ); fgets(temp, 256, stdin);
+    printf("作  者："); scanf("%63s" , author ); fgets(temp, 256, stdin);
+    printf("出版社："); scanf("%63s" , press  ); fgets(temp, 256, stdin);
+    printf("ISBN  ："); scanf("%15s" , isbn   ); fgets(temp, 256, stdin);
+    libdb_query_book(name, author, press, isbn, 0, 0, item, &n);
+
+    printf("\n");
+    printf("编码\t\t书名\t\t作者\t出版社\t\t价格\t状态\t书架\n");
+    printf("------------------------------------------------------------------------------\n");
+    for (i=0; i<n; i++) {
+        item[i].status += 1;
+        if (item[i].status < 0) item[i].status = 0;
+        if (item[i].status > 4) item[i].status = 4;
+        printf("B%010d\t%-10s\t%s\t%-10s\t%.2f\t%s\t%s\n", item[i].id, item[i].name, item[i].author, item[i].press, item[i].price, BOOK_STATUS_STR[item[0].status], item[i].shelf);
+    }
+    printf("\n");
+    printf("(任意键继续...)\n");
+    getch();
+}
 
 int enter_adminui(char *code)
 {
@@ -55,11 +200,26 @@ int enter_adminui(char *code)
         printf("5. 新用户注册\n");
         printf("6. 用户信息修改\n");
         printf("7. 初始化数据库\n");
-        printf("8. 登出\n");
+        printf("8. 登出\n\n");
         scanf("%1s", op); fgets(temp, 256, stdin);
         if (op[0] == '8') {
             printf("\n已退出管理界面\n\n");
             break;
+        } else {
+            switch (op[0]) {
+            case '1':
+                handle_query_book_by_barcode();
+                break;
+            case '2':
+                handle_query_book_by_condition();
+                break;
+            case '3':
+                handle_add_book();
+                break;
+            case '7':
+                handle_init_db();
+                break;
+            }
         }
     }
 

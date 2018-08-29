@@ -40,6 +40,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
+				AdditionalIncludeDirectories="../sqlite3-lib"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -60,7 +61,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="sqlite3.lib"
 				LinkIncremental="2"
+				AdditionalLibraryDirectories="../sqlite3-lib"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="1"
@@ -88,6 +91,8 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
+				Description="copy sqlite3 dll files"
+				CommandLine="copy &quot;$(SolutionDir)\sqlite3-lib\*.dll&quot; &quot;$(TargetDir)&quot; /y"
 			/>
 		</Configuration>
 		<Configuration
@@ -115,6 +120,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="../sqlite3-lib"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"
@@ -133,7 +139,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="sqlite3.lib"
 				LinkIncremental="1"
+				AdditionalLibraryDirectories="../sqlite3-lib"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				OptimizeReferences="2"
@@ -163,6 +171,8 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
+				Description="copy sqlite3 dll files"
+				CommandLine="copy &quot;$(SolutionDir)\sqlite3-lib\*.dll&quot; &quot;$(TargetDir)&quot; /y"
 			/>
 		</Configuration>
 	</Configurations>
@@ -202,6 +212,10 @@
 			</File>
 			<File
 				RelativePath=".\dbapi.h"
+				>
+			</File>
+			<File
+				RelativePath=".\stdefine.h"
 				>
 			</File>
 			<File

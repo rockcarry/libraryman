@@ -3,3 +3,4 @@ debug/
 release/
 *.ncb
 *.user
+*.suo

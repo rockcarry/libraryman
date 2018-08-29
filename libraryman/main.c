@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <conio.h>
 #include <string.h>
+#include "stdefine.h"
 #include "adminui.h"
 
 static int check_exit(char *code)
