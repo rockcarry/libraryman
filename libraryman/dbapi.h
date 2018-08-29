@@ -20,9 +20,10 @@ typedef struct {
 typedef struct {
     DWORD  id;
     char   name    [33];
-    char   sex     [7 ];
+    int    sex;
     char   idcard  [20];
-    int    maxborrow;
+    int    maxbrwnum;
+    int    maxbrwdays;
     char   password[16];
 } USERITEM;
 
@@ -32,8 +33,8 @@ int libdb_add_book   (char *name, char *author, char *press, double price, char 
 int libdb_query_book (char *name, char *author, char *press, char *isbn, DWORD bookid, int *total, int page, BOOKITEM *list, int *num);
 int libdb_modify_book(BOOKITEM *item);
 
-int libdb_add_user   (char *name, char *sex, char *idcard, char *password, DWORD *userid);
-int libdb_query_user (char *name, char *sex, char *idcard, DWORD userid, int *total, int page, USERITEM *list, int *num);
+int libdb_add_user   (char *name, int sex, char *idcard, char *password, DWORD *userid);
+int libdb_query_user (char *name, int sex, char *idcard, DWORD userid, int *total, int page, USERITEM *list, int *num);
 int libdb_modify_user(USERITEM *item);
 
 #endif

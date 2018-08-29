@@ -50,12 +50,15 @@ static int callback_user_query(void *data, int argc, char **argv, char **colname
     if (!rows || !list) return 0;
 
     i = *rows;
-    list[i].id        = atoi(argv[0]);
-    list[i].maxborrow = atoi(argv[4]);
-    strcpy(list[i].name    , argv[1]);
-    strcpy(list[i].sex     , argv[2]);
-    strcpy(list[i].idcard  , argv[3]);
-    strcpy(list[i].password, argv[5]);
+    if (i < PAGE_SIZE) {
+        list[i].id        = atoi(argv[0]);
+        list[i].sex       = atoi(argv[2]);
+        list[i].maxbrwnum = atoi(argv[4]);
+        list[i].maxbrwdays= atoi(argv[5]);
+        strcpy(list[i].name    , argv[1]);
+        strcpy(list[i].idcard  , argv[3]);
+        strcpy(list[i].password, argv[6]);
+    }
     (*rows)++;
     return 0;
 }
@@ -78,18 +81,20 @@ int libdb_init(void)
     char *sql2 = "create table UserTable ("
                  "Id         integer  primary key autoincrement,"
                  "Name       char(33) not null,"
-                 "Sex        char(7 ),"
+                 "Sex        integer,"
                  "IdCardNum  char(20) not null,"
-                 "MaxBorrow  integer  default 3,"
+                 "MaxBrwNum  integer  default 3,"
+                 "MaxBrwDays integer  default 3,"
                  "Password   char(16) not null"
                  ");";
 
     char *sql3 = "create table BorrowTable ("
-                 "Id         integer  primary key autoincrement,"
-                 "BookId     integer  not null,"
-                 "UserId     integer  not null,"
-                 "BorrowDate date     not null,"
-                 "ReturnDate date     not null"
+                 "Id            integer  primary key autoincrement,"
+                 "BookId        integer  not null,"
+                 "UserId        integer  not null,"
+                 "BorrowDate    datetime not null,"
+                 "LimitRetDate  datetime not null,"
+                 "ActualRetDate datetime default (date('9999-12-31'))"
                  ");";
 
     sqlite3 *db = NULL;
@@ -266,7 +271,7 @@ done:
     return rc;
 }
 
-int libdb_add_user(char *name, char *sex, char *idcard, char *password, DWORD *userid)
+int libdb_add_user(char *name, int sex, char *idcard, char *password, DWORD *userid)
 {
     char     sql[256];
     sqlite3 *db  = NULL;
@@ -279,7 +284,8 @@ int libdb_add_user(char *name, char *sex, char *idcard, char *password, DWORD *u
         goto done;
     }
 
-    sprintf(sql, "insert into UserTable (Name, Sex, IdCardNum, Password) values ('%s', '%s', '%s', '%s');",
+    sex = sex ? 1 : 0;
+    sprintf(sql, "insert into UserTable (Name, Sex, IdCardNum, Password) values ('%s', %d, '%s', '%s');",
         name, sex, idcard, password);
     rc = sqlite3_exec(db, sql, NULL, NULL, &err);
     if (rc) {
@@ -295,7 +301,7 @@ done:
     return rc;
 }
 
-int libdb_query_user(char *name, char *sex, char *idcard, DWORD userid, int *total, int page, USERITEM *list, int *num)
+int libdb_query_user(char *name, int sex, char *idcard, DWORD userid, int *total, int page, USERITEM *list, int *num)
 {
     char     sql [256];
     char     cond[256];
@@ -317,10 +323,11 @@ int libdb_query_user(char *name, char *sex, char *idcard, DWORD userid, int *tot
         strcat(cond, name);
         strcat(cond, "'");
     }
-    if (strcmp(sex, "*") != 0) {
-        strcat(cond, " and Sex like '");
-        strcat(cond, sex);
-        strcat(cond, "'");
+    if (sex != -1) {
+        char str[12] = {0};
+        itoa(sex, str, 10);
+        strcat(cond, " and Sex = ");
+        strcat(cond, str);
     }
     if (strcmp(idcard, "*") != 0) {
         strcat(cond, " and IdCardNum like '");
@@ -328,10 +335,10 @@ int libdb_query_user(char *name, char *sex, char *idcard, DWORD userid, int *tot
         strcat(cond, "'");
     }
     if (userid != 0) {
-        char strid[12] = {0};
-        itoa(userid, strid, 10);
+        char str[12] = {0};
+        itoa(userid, str, 10);
         strcat(cond, " and Id = ");
-        strcat(cond, strid);
+        strcat(cond, str);
     }
     if (page >= 0) {
         char offset  [12] = {0};
@@ -388,8 +395,8 @@ int libdb_modify_user(USERITEM *item)
         goto done;
     }
 
-    sprintf(sql, "update UserTable set Name = '%s', Sex = '%s', IdCardNum = '%s', MaxBorrow = %d, Password = '%s' where Id = %d;",
-        item->name, item->sex, item->idcard, item->maxborrow, item->password, item->id);
+    sprintf(sql, "update UserTable set Name = '%s', Sex = %d, IdCardNum = '%s', MaxBrwNum = %d, MaxBrwDays = %d, Password = '%s' where Id = %d;",
+        item->name, item->sex, item->idcard, item->maxbrwnum, item->maxbrwdays, item->password, item->id);
     rc = sqlite3_exec(db, sql, NULL, NULL, &err);
     if (rc) {
         printf("failed to modify user !\n");

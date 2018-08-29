@@ -18,6 +18,11 @@ static char *BOOK_STATUS_STR[] = {
     "遗失",
 };
 
+static char *USER_SEX_STR[] = {
+    "男",
+    "女",
+};
+
 static void handle_init_db(void)
 {
     char str [16];
@@ -288,7 +293,7 @@ static void handle_add_user(void)
     printf("新用户注册\r\n");
     printf("----------\r\n");
     printf("姓  名："); scanf("%32s", item.name    ); fgets(temp, 256, stdin);
-    printf("性  别："); scanf("%6s" , item.sex     ); fgets(temp, 256, stdin);
+    printf("性  别：（请选择 0-男 1-女）"); scanf("%d", &item.sex); fgets(temp, 256, stdin);
     printf("身份证："); scanf("%18s", item.idcard  ); fgets(temp, 256, stdin);
     printf("密  码："); scanf("%15s", item.password); fgets(temp, 256, stdin);
     rc = libdb_add_user(item.name, item.sex, item.idcard, item.password, &userid);
@@ -326,7 +331,7 @@ static void handle_mod_user(void)
     }
 
     userid = atoi(&barcode[1]);
-    libdb_query_user("*", "*", "*", userid, NULL, -1, item, &n);
+    libdb_query_user("*", -1, "*", userid, NULL, -1, item, &n);
     if (n == 0) {
         printf("\n没有找到该用户的相关信息！\n");
         printf("(任意键继续...)\n");
@@ -344,10 +349,10 @@ static void handle_mod_user(void)
         printf("请输入新的姓名："); scanf("%32s", item[0].name); fgets(temp, 256, stdin);
     }
 
-    printf("性  别：%s\n"    , item[0].sex);
+    printf("性  别：%s\n"    , USER_SEX_STR[item[0].sex]);
     printf("需要修改吗？(Y/N) "); scanf("%1s", yesno); fgets(temp, 256, stdin);
     if (yesno[0] == 'Y') {
-        printf("请输入新的性别："); scanf("%6s", item[0].sex); fgets(temp, 256, stdin);
+        printf("请选择新的性别：（0-男 1-女）"); scanf("%d", &item[0].sex); fgets(temp, 256, stdin);
     }
 
     printf("身份证：%s\n"    , item[0].idcard);
@@ -356,10 +361,16 @@ static void handle_mod_user(void)
         printf("请输入新的身份证号码："); scanf("%18s", item[0].idcard); fgets(temp, 256, stdin);
     }
 
-    printf("借书力：%d\n"  , item[0].maxborrow);
+    printf("借书数限：%d\n"  , item[0].maxbrwnum);
     printf("需要修改吗？(Y/N) "); scanf("%1s", yesno); fgets(temp, 256, stdin);
     if (yesno[0] == 'Y') {
-        printf("请输入新的借书能力："); scanf("%d", &(item[0].maxborrow)); fgets(temp, 256, stdin);
+        printf("请输入新的借书数限："); scanf("%d", &item[0].maxbrwnum); fgets(temp, 256, stdin);
+    }
+
+    printf("借书时限：%d\n"  , item[0].maxbrwdays);
+    printf("需要修改吗？(Y/N) "); scanf("%1s", yesno); fgets(temp, 256, stdin);
+    if (yesno[0] == 'Y') {
+        printf("请输入新的借书时限："); scanf("%d", &item[0].maxbrwdays); fgets(temp, 256, stdin);
     }
 
     printf("密  码：%s\n"    , item[0].password);
@@ -395,7 +406,7 @@ static void handle_query_user_by_barcode(void)
     }
 
     userid = atoi(&barcode[1]);
-    libdb_query_user("*", "*", "*", userid, NULL, -1, item, &n);
+    libdb_query_user("*", -1, "*", userid, NULL, -1, item, &n);
     if (n == 0) {
         printf("\n没有找到该用户的相关信息！\n");
         printf("(任意键继续...)\n");
@@ -408,9 +419,10 @@ static void handle_query_user_by_barcode(void)
     printf("----------\n");
     printf("编  码：U%010d\n", item[0].id);
     printf("姓  名：%s\n"    , item[0].name);
-    printf("性  别：%s\n"    , item[0].sex);
+    printf("性  别：%s\n"    , USER_SEX_STR[item[0].sex]);
     printf("身份证：%s\n"    , item[0].idcard);
-    printf("借书力：%d\n"    , item[0].maxborrow);
+    printf("数  限：%d\n"    , item[0].maxbrwnum);
+    printf("时  限：%d\n"    , item[0].maxbrwdays);
     printf("密  码：%s\n"    , item[0].password);
     printf("\n");
     printf("(任意键继续...)\n");
@@ -421,7 +433,7 @@ static void handle_query_user_by_condition(void)
 {
     USERITEM item[PAGE_SIZE];
     char  name   [33];
-    char  sex    [7 ];
+    int   sex     = -1;
     char  idcard [20];
     char  temp   [256];
     int   total   = 0;
@@ -436,23 +448,23 @@ static void handle_query_user_by_condition(void)
     printf("----------\r\n");
     printf("请输入查询条件：\n");
     printf("姓  名："); scanf("%32s", name    ); fgets(temp, 256, stdin);
-    printf("性  别："); scanf("%6s" , sex     ); fgets(temp, 256, stdin);
+    printf("性  别：（请选择 0-男 1-女）"); scanf("%d", &sex); fgets(temp, 256, stdin);
     printf("身份证："); scanf("%18s", idcard  ); fgets(temp, 256, stdin);
 
     libdb_query_user(name, sex, idcard, 0, &total, -1, NULL, NULL);
     pagenum = (total + PAGE_SIZE - 1) / PAGE_SIZE;
     if (total == 0) {
-        printf("未找到符合查询条件的用户！\n");
+        printf("\n未找到符合查询条件的用户！\n");
         goto done;
     }
 
     while (1) {
         libdb_query_user(name, sex, idcard, 0, NULL, pagecur, item, &n);
         printf("\n");
-        printf("编码         姓名      性别  身份证              借书能力  密码\n");
-        printf("------------------------------------------------------------------------\n");
+        printf("编码         姓名      性别  身份证             数限  时限   密码\n");
+        printf("-----------------------------------------------------------------------\n");
         for (i=0; i<n&&i<PAGE_SIZE; i++) {
-            printf("U%010d  %-8s  %-4s  %s  %-3d       %s\n", item[i].id, item[i].name, item[i].sex, item[i].idcard, item[i].maxborrow, item[i].password);
+            printf("U%010d  %-8s  %-4s  %s  %-4d  %-4d  %s\n", item[i].id, item[i].name, USER_SEX_STR[item[i].sex], item[i].idcard, item[i].maxbrwnum, item[i].maxbrwdays, item[i].password);
         }
         printf("\n");
         printf("记录数：%d      分页：%d/%d\n\n", total, pagecur+1, pagenum);
