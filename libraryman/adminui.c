@@ -274,6 +274,76 @@ static void handle_add_user(void)
     getch();
 }
 
+static void handle_mod_user(void)
+{
+    USERITEM item[10 ] = {0};
+    char  barcode[12 ] = {0};
+    char  temp   [256];
+    char  yesno  [2];
+    DWORD userid = 0;
+    int   rc     = 0;
+    int   n      = 0;
+
+    printf("\n");
+    printf("用户信息修改\r\n");
+    printf("------------\r\n");
+    printf("请扫描条码（或输入借书卡编码）："); scanf("%11s", barcode); fgets(temp, 256, stdin);
+    if (barcode[0] != 'U') {
+        printf("\n非法的借书卡编码！\n");
+        printf("(任意键继续...)\n");
+        getch();
+        return;
+    }
+
+    userid = atoi(&barcode[1]);
+    libdb_query_user("*", "*", "*", userid, -1, item, &n);
+    if (n == 0) {
+        printf("\n没有找到该用户的相关信息！\n");
+        printf("(任意键继续...)\n");
+        getch();
+        return;
+    }
+
+    printf("\n");
+    printf("用户信息：\n");
+    printf("----------\n");
+
+    printf("姓  名：%s\n"    , item[0].name);
+    printf("需要修改吗？(Y/N) "); scanf("%1s", yesno); fgets(temp, 256, stdin);
+    if (yesno[0] == 'Y') {
+        printf("请输入新的姓名："); scanf("%32s", item[0].name); fgets(temp, 256, stdin);
+    }
+
+    printf("性  别：%s\n"    , item[0].sex);
+    printf("需要修改吗？(Y/N) "); scanf("%1s", yesno); fgets(temp, 256, stdin);
+    if (yesno[0] == 'Y') {
+        printf("请输入新的性别："); scanf("%6s", item[0].sex); fgets(temp, 256, stdin);
+    }
+
+    printf("身份证：%s\n"    , item[0].idcard);
+    printf("需要修改吗？(Y/N) "); scanf("%1s", yesno); fgets(temp, 256, stdin);
+    if (yesno[0] == 'Y') {
+        printf("请输入新的身份证号码："); scanf("%18s", item[0].idcard); fgets(temp, 256, stdin);
+    }
+
+    printf("借书力：%d\n"  , item[0].maxborrow);
+    printf("需要修改吗？(Y/N) "); scanf("%1s", yesno); fgets(temp, 256, stdin);
+    if (yesno[0] == 'Y') {
+        printf("请输入新的借书能力："); scanf("%d", &(item[0].maxborrow)); fgets(temp, 256, stdin);
+    }
+
+    printf("密  码：%s\n"    , item[0].password);
+    printf("需要修改吗？(Y/N) "); scanf("%1s", yesno); fgets(temp, 256, stdin);
+    if (yesno[0] == 'Y') {
+        printf("请输入新的密码："); scanf("%15s", item[0].password); fgets(temp, 256, stdin);
+    }
+
+    rc = libdb_modify_user(&(item[0]));
+    printf("修改用户信息%s!\n", rc ? "失败" : "成功");
+    printf("(任意键继续...)\n");
+    getch();
+}
+
 static void handle_query_user_by_barcode(void)
 {
     USERITEM item[10 ] = {0};
@@ -415,6 +485,7 @@ int enter_adminui(char *code)
             case '5': handle_query_user_by_barcode  (); break;
             case '6': handle_query_user_by_condition(); break;
             case '7': handle_add_user(); break;
+            case '8': handle_mod_user(); break;
             case '9': handle_init_db (); break;
             }
         }

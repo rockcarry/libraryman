@@ -326,4 +326,30 @@ done:
     return rc;
 }
 
-//int libdb_modify_user(USERITEM *item);
+int libdb_modify_user(USERITEM *item)
+{
+    char     sql[256];
+    sqlite3 *db  = NULL;
+    char    *err = NULL;
+    int      rc  = 0;
+
+    rc = sqlite3_open("library.db", &db);
+    if (rc) {
+        printf("failed to open database !\n");
+        goto done;
+    }
+
+    sprintf(sql, "update UserTable set Name = '%s', Sex = '%s', IdCardNum = '%s', MaxBorrow = %d, Password = '%s' where Id = %d;",
+        item->name, item->sex, item->idcard, item->maxborrow, item->password, item->id);
+    rc = sqlite3_exec(db, sql, NULL, NULL, &err);
+    if (rc) {
+        printf("failed to modify user !\n");
+        printf("%s.\n", err);
+//      goto done;
+    }
+
+done:
+    if (db) sqlite3_close(db);
+    return rc;
+}
+
