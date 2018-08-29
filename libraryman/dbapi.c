@@ -4,6 +4,13 @@
 #include "stdefine.h"
 #include "dbapi.h"
 
+static int callback_get_count(void *data, int argc, char **argv, char **colname)
+{
+    int *count = (int*)data;
+    *count = atoi(argv[0]);
+    return 0;
+}
+
 static int callback_book_query(void *data, int argc, char **argv, char **colname)
 {
     int      *rows = NULL;
@@ -16,15 +23,17 @@ static int callback_book_query(void *data, int argc, char **argv, char **colname
     if (!rows || !list) return 0;
 
     i = *rows;
-    list[i].id     = atoi(argv[0]);
-    list[i].price  = atof(argv[4]);
-    list[i].status = atoi(argv[8]);
-    strcpy(list[i].name   , argv[1]);
-    strcpy(list[i].author , argv[2]);
-    strcpy(list[i].press  , argv[3]);
-    strcpy(list[i].isbn   , argv[5]);
-    strcpy(list[i].shelf  , argv[6]);
-    strcpy(list[i].comment, argv[9]);
+    if (i < PAGE_SIZE) {
+        list[i].id     = atoi(argv[0]);
+        list[i].price  = atof(argv[4]);
+        list[i].status = atoi(argv[8]);
+        strcpy(list[i].name   , argv[1]);
+        strcpy(list[i].author , argv[2]);
+        strcpy(list[i].press  , argv[3]);
+        strcpy(list[i].isbn   , argv[5]);
+        strcpy(list[i].shelf  , argv[6]);
+        strcpy(list[i].comment, argv[9]);
+    }
     (*rows)++;
     return 0;
 }
@@ -63,7 +72,7 @@ int libdb_init(void)
                  "Price   real     default 0.0,"
                  "ISBN    char(16),"
                  "Shelf   char(16),"
-                 "Status  integer  default 0,"
+                 "Status  integer  default 1,"
                  "Comment text"
                  ");";
     char *sql2 = "create table UserTable ("
@@ -145,9 +154,10 @@ done:
     return rc;
 }
 
-int libdb_query_book(char *name, char *author, char *press, char *isbn, DWORD bookid, int page, BOOKITEM *list, int *num)
+int libdb_query_book(char *name, char *author, char *press, char *isbn, DWORD bookid, int *total, int page, BOOKITEM *list, int *num)
 {
-    char     sql[256];
+    char     sql [256];
+    char     cond[256];
     sqlite3 *db  = NULL;
     char    *err = NULL;
     int      rc  = 0;
@@ -160,40 +170,59 @@ int libdb_query_book(char *name, char *author, char *press, char *isbn, DWORD bo
         goto done;
     }
 
-    sprintf(sql, "select * from BookTable where TRUE");
+    sprintf(cond, " where TRUE");
     if (strcmp(name, "*") != 0) {
-        strcat(sql, " and Name like '");
-        strcat(sql, name);
-        strcat(sql, "'");
+        strcat(cond, " and Name like '");
+        strcat(cond, name);
+        strcat(cond, "'");
     }
     if (strcmp(author, "*") != 0) {
-        strcat(sql, " and Author like '");
-        strcat(sql, author);
-        strcat(sql, "'");
+        strcat(cond, " and Author like '");
+        strcat(cond, author);
+        strcat(cond, "'");
     }
     if (strcmp(press, "*") != 0) {
-        strcat(sql, " and Press like '");
-        strcat(sql, press);
-        strcat(sql, "'");
+        strcat(cond, " and Press like '");
+        strcat(cond, press);
+        strcat(cond, "'");
     }
     if (strcmp(isbn, "*") != 0) {
-        strcat(sql, " and ISBN = '");
-        strcat(sql, isbn);
-        strcat(sql, "'");
+        strcat(cond, " and ISBN = '");
+        strcat(cond, isbn);
+        strcat(cond, "'");
     }
     if (bookid != 0) {
         char strid[12] = {0};
         itoa(bookid, strid, 10);
-        strcat(sql, " and Id = ");
-        strcat(sql, strid);
+        strcat(cond, " and Id = ");
+        strcat(cond, strid);
     }
-    if (page > 0) {
-        char offset[12] = {0};
-        itoa(page * 10, offset, 10);
-        strcat(sql, " limit 10 offset ");
-        strcat(sql, offset);
+    if (page >= 0) {
+        char offset  [12] = {0};
+        char pagesize[12] = {0};
+        itoa(page * PAGE_SIZE, offset  , 10);
+        itoa(1    * PAGE_SIZE, pagesize, 10);
+        strcat(cond, " limit " );
+        strcat(cond, pagesize  );
+        strcat(cond, " offset ");
+        strcat(cond, offset    );
     }
-    strcat(sql, ";");
+
+    if (total) {
+        sprintf(sql, "select count(*) from BookTable ");
+        strcat (sql, cond);
+        strcat (sql, ";");
+        rc = sqlite3_exec(db, sql, callback_get_count, total, &err);
+        if (rc) {
+            printf("failed to get count !\n");
+            printf("%s.\n", err);
+    //      goto done;
+        }
+    }
+
+    sprintf(sql, "select * from BookTable ");
+    strcat (sql, cond);
+    strcat (sql, ";");
 
     data[0] = &rows;
     data[1] =  list;
@@ -206,7 +235,7 @@ int libdb_query_book(char *name, char *author, char *press, char *isbn, DWORD bo
 
 done:
     if (db) sqlite3_close(db);
-    *num = rows;
+    if (num) *num = rows;
     return rc;
 }
 
@@ -266,9 +295,10 @@ done:
     return rc;
 }
 
-int libdb_query_user(char *name, char *sex, char *idcard, DWORD userid, int page, USERITEM *list, int *num)
+int libdb_query_user(char *name, char *sex, char *idcard, DWORD userid, int *total, int page, USERITEM *list, int *num)
 {
-    char     sql[256];
+    char     sql [256];
+    char     cond[256];
     sqlite3 *db  = NULL;
     char    *err = NULL;
     int      rc  = 0;
@@ -281,35 +311,54 @@ int libdb_query_user(char *name, char *sex, char *idcard, DWORD userid, int page
         goto done;
     }
 
-    sprintf(sql, "select * from UserTable where TRUE");
+    sprintf(cond, " where TRUE");
     if (strcmp(name, "*") != 0) {
-        strcat(sql, " and Name like '");
-        strcat(sql, name);
-        strcat(sql, "'");
+        strcat(cond, " and Name like '");
+        strcat(cond, name);
+        strcat(cond, "'");
     }
     if (strcmp(sex, "*") != 0) {
-        strcat(sql, " and Sex like '");
-        strcat(sql, sex);
-        strcat(sql, "'");
+        strcat(cond, " and Sex like '");
+        strcat(cond, sex);
+        strcat(cond, "'");
     }
     if (strcmp(idcard, "*") != 0) {
-        strcat(sql, " and IdCardNum like '");
-        strcat(sql, idcard);
-        strcat(sql, "'");
+        strcat(cond, " and IdCardNum like '");
+        strcat(cond, idcard);
+        strcat(cond, "'");
     }
     if (userid != 0) {
         char strid[12] = {0};
         itoa(userid, strid, 10);
-        strcat(sql, " and Id = ");
-        strcat(sql, strid);
+        strcat(cond, " and Id = ");
+        strcat(cond, strid);
     }
-    if (page > 0) {
-        char offset[12] = {0};
-        itoa(page * 10, offset, 10);
-        strcat(sql, " limit 10 offset ");
-        strcat(sql, offset);
+    if (page >= 0) {
+        char offset  [12] = {0};
+        char pagesize[12] = {0};
+        itoa(page * PAGE_SIZE, offset  , 10);
+        itoa(1    * PAGE_SIZE, pagesize, 10);
+        strcat(cond, " limit " );
+        strcat(cond, pagesize  );
+        strcat(cond, " offset ");
+        strcat(cond, offset    );
     }
-    strcat(sql, ";");
+
+    if (total) {
+        sprintf(sql, "select count(*) from UserTable ");
+        strcat (sql, cond);
+        strcat (sql, ";");
+        rc = sqlite3_exec(db, sql, callback_get_count, total, &err);
+        if (rc) {
+            printf("failed to get count !\n");
+            printf("%s.\n", err);
+    //      goto done;
+        }
+    }
+
+    sprintf(sql, "select * from UserTable ");
+    strcat (sql, cond);
+    strcat (sql, ";");
 
     data[0] = &rows;
     data[1] =  list;
@@ -322,7 +371,7 @@ int libdb_query_user(char *name, char *sex, char *idcard, DWORD userid, int page
 
 done:
     if (db) sqlite3_close(db);
-    *num = rows;
+    if (num) *num = rows;
     return rc;
 }
 

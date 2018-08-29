@@ -47,7 +47,7 @@ static void handle_add_book(void)
     printf("书  名："); scanf("%63s" , item.name   ); fgets(temp, 256, stdin);
     printf("作  者："); scanf("%63s" , item.author ); fgets(temp, 256, stdin);
     printf("出版社："); scanf("%63s" , item.press  ); fgets(temp, 256, stdin);
-    printf("价  格："); scanf("%f"   ,&item.price  ); fgets(temp, 256, stdin);
+    printf("价  格："); scanf("%lf"  ,&item.price  ); fgets(temp, 256, stdin);
     printf("ISBN  ："); scanf("%15s" , item.isbn   ); fgets(temp, 256, stdin);
     printf("书  架："); scanf("%15s" , item.shelf  ); fgets(temp, 256, stdin);
     printf("备  注："); scanf("%255s", item.comment); fgets(temp, 256, stdin);
@@ -68,7 +68,7 @@ static void handle_add_book(void)
 
 static void handle_mod_book(void)
 {
-    BOOKITEM item[10 ] = {0};
+    BOOKITEM item[PAGE_SIZE];
     char  barcode[12 ] = {0};
     char  temp   [256];
     char  yesno  [2];
@@ -88,7 +88,7 @@ static void handle_mod_book(void)
     }
 
     bookid = atoi(&barcode[1]);
-    libdb_query_book("*", "*", "*", "*", bookid, -1, item, &n);
+    libdb_query_book("*", "*", "*", "*", bookid, NULL, -1, item, &n);
     if (n == 0) {
         printf("\n没有找到该书籍的相关信息！\n");
         printf("(任意键继续...)\n");
@@ -124,7 +124,7 @@ static void handle_mod_book(void)
     printf("价  格：%.2f\n"  , item[0].price);
     printf("需要修改吗？(Y/N) "); scanf("%1s", yesno); fgets(temp, 256, stdin);
     if (yesno[0] == 'Y') {
-        printf("请输入新的价格："); scanf("%f", &(item[0].price)); fgets(temp, 256, stdin);
+        printf("请输入新的价格："); scanf("%lf", &item[0].price); fgets(temp, 256, stdin);
     }
 
     printf("ISBN  ：%s\n"    , item[0].isbn);
@@ -165,7 +165,7 @@ static void handle_mod_book(void)
 
 static void handle_query_book_by_barcode(void)
 {
-    BOOKITEM item[10 ] = {0};
+    BOOKITEM item[PAGE_SIZE];
     char  barcode[12 ] = {0};
     char  temp   [256];
     DWORD bookid = 0;
@@ -184,7 +184,7 @@ static void handle_query_book_by_barcode(void)
     }
 
     bookid = atoi(&barcode[1]);
-    libdb_query_book("*", "*", "*", "*", bookid, -1, item, &n);
+    libdb_query_book("*", "*", "*", "*", bookid, NULL, -1, item, &n);
     if (n == 0) {
         printf("\n没有找到该书籍的相关信息！\n");
         printf("(任意键继续...)\n");
@@ -214,14 +214,17 @@ static void handle_query_book_by_barcode(void)
 
 static void handle_query_book_by_condition(void)
 {
-    BOOKITEM item[10];
+    BOOKITEM item[PAGE_SIZE];
     char  name   [64];
     char  author [64];
     char  press  [64];
     char  isbn   [16 ];
     char  temp   [256];
-    int   rc = 0;
-    int   n  = 0;
+    int   total   = 0;
+    int   pagenum = 0;
+    int   pagecur = 0;
+    int   rc      = 0;
+    int   n       = 0;
     int   i;
 
     printf("\n");
@@ -232,17 +235,44 @@ static void handle_query_book_by_condition(void)
     printf("作  者："); scanf("%63s" , author ); fgets(temp, 256, stdin);
     printf("出版社："); scanf("%63s" , press  ); fgets(temp, 256, stdin);
     printf("ISBN  ："); scanf("%15s" , isbn   ); fgets(temp, 256, stdin);
-    libdb_query_book(name, author, press, isbn, 0, 0, item, &n);
 
-    printf("\n");
-    printf("编码         书名          作者      出版社        价格   状态  书架\n");
-    printf("----------------------------------------------------------------------\n");
-    for (i=0; i<n; i++) {
-        if (item[i].status < 0) item[i].status = 0;
-        if (item[i].status > 4) item[i].status = 4;
-        printf("B%010d  %-12s  %-8s  %-12s  %5.2f  %s  %s\n", item[i].id, item[i].name, item[i].author, item[i].press, item[i].price, BOOK_STATUS_STR[item[0].status], item[i].shelf);
+    libdb_query_book(name, author, press, isbn, 0, &total, -1, NULL, NULL);
+    pagenum = (total + PAGE_SIZE - 1) / PAGE_SIZE;
+    if (total == 0) {
+        printf("未找到符合查询条件的书籍！\n");
+        goto done;
     }
-    printf("\n");
+
+    while (1) {
+        libdb_query_book(name, author, press, isbn, 0, NULL, pagecur, item, &n);
+        printf("\n");
+        printf("编码         书名          作者      出版社        价格   状态  书架\n");
+        printf("----------------------------------------------------------------------\n");
+        for (i=0; i<n&&i<PAGE_SIZE; i++) {
+            if (item[i].status < 0) item[i].status = 0;
+            if (item[i].status > 4) item[i].status = 4;
+            printf("B%010d  %-12s  %-8s  %-12s  %5.2f  %s  %s\n", item[i].id, item[i].name, item[i].author, item[i].press, item[i].price, BOOK_STATUS_STR[item[0].status], item[i].shelf);
+        }
+        printf("\n");
+        printf("记录数：%d      分页：%d/%d\n\n", total, pagecur+1, pagenum);
+        switch (getch()) {
+        case ',':
+        case '-':
+        case '<':
+            if (pagecur > 0) pagecur--;
+            break;
+        case '.':
+        case '+':
+        case '>':
+            if (pagecur < pagenum - 1) pagecur++;
+            break;
+        case 'q':
+        case 'Q':
+            return;
+        }
+    }
+
+done:
     printf("(任意键继续...)\n");
     getch();
 }
@@ -276,7 +306,7 @@ static void handle_add_user(void)
 
 static void handle_mod_user(void)
 {
-    USERITEM item[10 ] = {0};
+    USERITEM item[PAGE_SIZE];
     char  barcode[12 ] = {0};
     char  temp   [256];
     char  yesno  [2];
@@ -296,7 +326,7 @@ static void handle_mod_user(void)
     }
 
     userid = atoi(&barcode[1]);
-    libdb_query_user("*", "*", "*", userid, -1, item, &n);
+    libdb_query_user("*", "*", "*", userid, NULL, -1, item, &n);
     if (n == 0) {
         printf("\n没有找到该用户的相关信息！\n");
         printf("(任意键继续...)\n");
@@ -346,7 +376,7 @@ static void handle_mod_user(void)
 
 static void handle_query_user_by_barcode(void)
 {
-    USERITEM item[10 ] = {0};
+    USERITEM item[PAGE_SIZE];
     char  barcode[12 ] = {0};
     char  temp   [256];
     DWORD userid = 0;
@@ -365,7 +395,7 @@ static void handle_query_user_by_barcode(void)
     }
 
     userid = atoi(&barcode[1]);
-    libdb_query_user("*", "*", "*", userid, -1, item, &n);
+    libdb_query_user("*", "*", "*", userid, NULL, -1, item, &n);
     if (n == 0) {
         printf("\n没有找到该用户的相关信息！\n");
         printf("(任意键继续...)\n");
@@ -389,13 +419,16 @@ static void handle_query_user_by_barcode(void)
 
 static void handle_query_user_by_condition(void)
 {
-    USERITEM item[10];
+    USERITEM item[PAGE_SIZE];
     char  name   [33];
     char  sex    [7 ];
     char  idcard [20];
     char  temp   [256];
-    int   rc = 0;
-    int   n  = 0;
+    int   total   = 0;
+    int   pagenum = 0;
+    int   pagecur = 0;
+    int   rc      = 0;
+    int   n       = 0;
     int   i;
 
     printf("\n");
@@ -405,15 +438,42 @@ static void handle_query_user_by_condition(void)
     printf("姓  名："); scanf("%32s", name    ); fgets(temp, 256, stdin);
     printf("性  别："); scanf("%6s" , sex     ); fgets(temp, 256, stdin);
     printf("身份证："); scanf("%18s", idcard  ); fgets(temp, 256, stdin);
-    libdb_query_user(name, sex, idcard, 0, 0, item, &n);
 
-    printf("\n");
-    printf("编码         姓名      性别  身份证              借书能力  密码\n");
-    printf("------------------------------------------------------------------------\n");
-    for (i=0; i<n; i++) {
-        printf("U%010d  %-8s  %-4s  %s  %-3d       %s\n", item[i].id, item[i].name, item[i].sex, item[i].idcard, item[i].maxborrow, item[i].password);
+    libdb_query_user(name, sex, idcard, 0, &total, -1, NULL, NULL);
+    pagenum = (total + PAGE_SIZE - 1) / PAGE_SIZE;
+    if (total == 0) {
+        printf("未找到符合查询条件的用户！\n");
+        goto done;
     }
-    printf("\n");
+
+    while (1) {
+        libdb_query_user(name, sex, idcard, 0, NULL, pagecur, item, &n);
+        printf("\n");
+        printf("编码         姓名      性别  身份证              借书能力  密码\n");
+        printf("------------------------------------------------------------------------\n");
+        for (i=0; i<n&&i<PAGE_SIZE; i++) {
+            printf("U%010d  %-8s  %-4s  %s  %-3d       %s\n", item[i].id, item[i].name, item[i].sex, item[i].idcard, item[i].maxborrow, item[i].password);
+        }
+        printf("\n");
+        printf("记录数：%d      分页：%d/%d\n\n", total, pagecur+1, pagenum);
+        switch (getch()) {
+        case ',':
+        case '-':
+        case '<':
+            if (pagecur > 0) pagecur--;
+            break;
+        case '.':
+        case '+':
+        case '>':
+            if (pagecur < pagenum - 1) pagecur++;
+            break;
+        case 'q':
+        case 'Q':
+            return;
+        }
+    }
+
+done:
     printf("(任意键继续...)\n");
     getch();
 }
