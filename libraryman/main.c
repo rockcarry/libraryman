@@ -5,12 +5,6 @@
 #include "stdefine.h"
 #include "adminui.h"
 
-static int check_exit(char *code)
-{
-
-    return 0;
-}
-
 int main(void)
 {
     char code[17];
