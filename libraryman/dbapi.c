@@ -409,3 +409,96 @@ done:
     return rc;
 }
 
+int libdb_query_borrow(DWORD userid, char *datetime, int before, int *total, int page, BOOKITEM *list, int *num)
+{
+    char     sql[256];
+    sqlite3 *db  = NULL;
+    char    *err = NULL;
+    int      rc  = 0;
+    int      rows= 0;
+    void    *data[2];
+
+    rc = sqlite3_open("library.db", &db);
+    if (rc) {
+        printf("failed to open database !\n");
+        goto done;
+    }
+
+    if (total) {
+        sprintf(sql, "select count(BookTable.Id) from BookTable, BorrowTable where BookTable.Id = BorrowTable.BookId and BorrowTable.UserId = %d and BorrowTable.ActualRetDate = date('9999-12-31')", userid);
+        if (datetime) {
+            strcat(sql, " and BorrowTable.BorrowDate ");
+            strcat(sql, before ? "<= datetime('" : ">= datetime('");
+            strcat(sql, datetime);
+            strcat(sql, "')");
+        }
+        strcat(sql, ";");
+        rc = sqlite3_exec(db, sql, callback_get_count, total, &err);
+        if (rc) {
+            printf("failed to get borrow count !\n");
+            printf("%s.\n", err);
+    //      goto done;
+        }
+    }
+
+    sprintf(sql, "select BookTable.* from BookTable, BorrowTable where BookTable.Id = BorrowTable.BookId and BorrowTable.UserId = %d and BorrowTable.ActualRetDate = date('9999-12-31')", userid);
+    if (datetime) {
+        strcat(sql, " and BorrowTable.BorrowDate ");
+        strcat(sql, before ? "<= datetime('" : ">= datetime('");
+        strcat(sql, datetime);
+        strcat(sql, "')");
+    }
+    if (page >= 0) {
+        char offset  [12] = {0};
+        char pagesize[12] = {0};
+        itoa(page * PAGE_SIZE, offset  , 10);
+        itoa(1    * PAGE_SIZE, pagesize, 10);
+        strcat(sql, " limit " );
+        strcat(sql, pagesize  );
+        strcat(sql, " offset ");
+        strcat(sql, offset    );
+    }
+    strcat(sql, ";");
+
+    data[0] = &rows;
+    data[1] =  list;
+    rc = sqlite3_exec(db, sql, callback_book_query, data, &err);
+    if (rc) {
+        printf("failed to query borrow book !\n");
+        printf("%s.\n", err);
+//      goto done;
+    }
+
+done:
+    if (db) sqlite3_close(db);
+    if (num) *num = rows;
+    return rc;
+}
+
+int libdb_borrow_book(DWORD userid, DWORD bookid, char *datetime, int maxbrwdays)
+{
+    char     sql[256];
+    sqlite3 *db  = NULL;
+    char    *err = NULL;
+    int      rc  = 0;
+
+    rc = sqlite3_open("library.db", &db);
+    if (rc) {
+        printf("failed to open database !\n");
+        goto done;
+    }
+
+    sprintf(sql, "update BookTable set Status = 2 where Id = %d;"
+                 "insert into BorrowTable (BookId, UserId, BorrowDate, LimitRetDate) values (%d, %d, datetime('%s'), datetime('%s', '+%d days'));",
+            bookid, bookid, userid, datetime, datetime, maxbrwdays);
+    rc = sqlite3_exec(db, sql, NULL, NULL, &err);
+    if (rc) {
+        printf("failed to query borrow book !\n");
+        printf("%s.\n", err);
+//      goto done;
+    }
+
+done:
+    if (db) sqlite3_close(db);
+    return rc;
+}

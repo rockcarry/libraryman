@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <conio.h>
 #include <string.h>
+#include <time.h>
 #include "stdefine.h"
 #include "dbapi.h"
 #include "adminui.h"
@@ -490,6 +491,73 @@ done:
     getch();
 }
 
+static void handle_borrow_book(void)
+{
+    USERITEM userlist[PAGE_SIZE];
+    BOOKITEM booklist[PAGE_SIZE];
+    char   barcode[12] = {0};
+    char   temp[256];
+    DWORD  userid = 0;
+    DWORD  bookid = 0;
+    int    total  = 0;
+    int    n      = 0;
+    int    i;
+    time_t t      = time(NULL);
+    char   stime[64];
+    strftime(stime, sizeof(stime), "%Y-%m-%d %H:%M:%S", localtime(&t));
+
+    printf("\n");
+    printf("借书\r\n");
+    printf("----\r\n");
+    printf("请扫描借书卡条码："); scanf("%11s", barcode); fgets(temp, 256, stdin);
+    if (barcode[0] != 'U') {
+        printf("\n非法的用户编码！\n");
+        printf("(任意键继续...)\n");
+        getch();
+        return;
+    }
+
+    userid = atoi(&barcode[1]);
+    libdb_query_user("*", -1, "*", userid, NULL, -1, userlist, &n);
+    if (n == 0) {
+        printf("\n没有找到该用户的相关信息！\n");
+        printf("(任意键继续...)\n");
+        getch();
+        return;
+    }
+
+    while (1) {
+        libdb_query_borrow(userid, NULL, 0, &total, -1, NULL, NULL);
+        printf("\n");
+        printf("姓名：%s    借书数限：%d 本    借书时限：%d 天    已借书：%d 本\n", userlist[0].name, userlist[0].maxbrwnum, userlist[0].maxbrwdays, total);
+        printf("---------------------------------------------------------------\n");
+        if (total >= userlist[0].maxbrwnum) {
+            printf("已经借满 %d 本书了！\n", userlist[0].maxbrwnum);
+            printf("(任意键继续...)\n");
+            getch();
+            return;
+        }
+
+        n = 0; libdb_query_borrow(userid, stime, 0, NULL, 0, booklist, &n);
+        for (i=0; i<n&&i<PAGE_SIZE; i++) {
+            printf("B%010d  %-12s  %-8s  %-12s  %5.2f  %s\n", booklist[i].id, booklist[i].name, booklist[i].author, booklist[i].press, booklist[i].price, BOOK_STATUS_STR[booklist[0].status]);
+        }
+
+        printf("请扫描书籍条码："); scanf("%11s", barcode); fgets(temp, 256, stdin);
+        if (strcmp(barcode, "quit") == 0) break;
+        if (barcode[0] != 'B') {
+            printf("\n非法的书籍编码！\n");
+        } else {
+            bookid = atoi(&barcode[1]);
+            libdb_borrow_book(userid, bookid, stime, userlist[0].maxbrwdays);
+        }
+    }
+}
+
+static void handle_return_book(void)
+{
+}
+
 int enter_adminui(char *code)
 {
     char password[16];
@@ -559,6 +627,8 @@ int enter_adminui(char *code)
             case '7': handle_add_user(); break;
             case '8': handle_mod_user(); break;
             case '9': handle_init_db (); break;
+            case 'B': handle_borrow_book(); break;
+            case 'R': handle_return_book(); break;
             }
         }
     }

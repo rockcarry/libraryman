@@ -15,6 +15,7 @@ typedef struct {
     char   shelf  [16];
     int    status;
     char   comment[256];
+    char   datebrw[20];
 } BOOKITEM;
 
 typedef struct {
@@ -36,6 +37,9 @@ int libdb_modify_book(BOOKITEM *item);
 int libdb_add_user   (char *name, int sex, char *idcard, char *password, DWORD *userid);
 int libdb_query_user (char *name, int sex, char *idcard, DWORD userid, int *total, int page, USERITEM *list, int *num);
 int libdb_modify_user(USERITEM *item);
+
+int libdb_query_borrow(DWORD userid, char *datetime, int before, int *total, int page, BOOKITEM *list, int *num);
+int libdb_borrow_book(DWORD userid, DWORD bookid, char *datetime, int maxbrwdays);
 
 #endif
 
